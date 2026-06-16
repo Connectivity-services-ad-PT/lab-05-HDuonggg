@@ -111,15 +111,24 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     if isinstance(exc.detail, dict):
         problem = exc.detail
     else:
+        title_map = {
+            400: "Bad Request",
+            401: "Unauthorized",
+            403: "Forbidden",
+            404: "Not Found",
+            422: "Unprocessable Entity",
+            429: "Too Many Requests",
+            500: "Internal Server Error",
+        }
         problem = build_problem(
             status_code=exc.status_code,
-            title=status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"),
+            title=title_map.get(exc.status_code, "HTTP Error"),
             detail=str(exc.detail),
             instance=str(request.url.path),
         )
 
     problem.setdefault("status", exc.status_code)
-    problem.setdefault("title", status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"))
+    problem.setdefault("title", "HTTP Error")
     problem.setdefault("type", "about:blank")
     problem.setdefault("detail", "Request failed")
     problem.setdefault("instance", str(request.url.path))
@@ -158,24 +167,16 @@ def verify_bearer_token(authorization: Optional[str] = Header(default=None)) -> 
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=build_problem(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                title="Unauthorized",
-                detail="Missing Authorization header",
-                problem_type="https://smart-campus.local/problems/unauthorized",
-            ),
+            detail="Missing Authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     expected = f"Bearer {AUTH_TOKEN}"
     if authorization != expected:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=build_problem(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                title="Unauthorized",
-                detail="Invalid bearer token",
-                problem_type="https://smart-campus.local/problems/unauthorized",
-            ),
+            detail="Invalid bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
 
