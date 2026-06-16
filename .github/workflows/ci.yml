@@ -23,11 +23,19 @@ jobs:
           docker --version || true
           docker buildx version || true
 
-      - name: Install Docker Compose plugin
+      - name: Install Docker Compose plugin (apt or fallback download)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose-plugin
-          docker compose version
+          set -e
+          sudo apt-get update || true
+          if sudo apt-get install -y docker-compose-plugin; then
+            docker compose version
+          else
+            echo "apt install failed — falling back to downloading docker-compose binary"
+            sudo mkdir -p /usr/local/lib/docker/cli-plugins
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
+            sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+            docker compose version
+          fi
 
       - name: Build and start compose stack
         run: |
